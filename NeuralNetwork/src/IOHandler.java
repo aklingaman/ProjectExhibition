@@ -1,4 +1,7 @@
-//This class handles file IO.
+/**
+ * This class handles IO as well as loading the values from the config for neural net specs.
+ */
+
 import java.util.*;
 import java.io.*;
 public class IOHandler {
@@ -15,19 +18,22 @@ public class IOHandler {
         }
         return;
     }
+
 	//Takes in a configuration file that outlines the NN structure, and returns an NN using that structure. 	
 	//Format: name: abc, inputsize: 784, hlquantity: 2, hlsize: 20, outputsize: 10
-	//Currently we have 2 hidden layers hard coded, so the hlquantity field gets ignored.
-	//TODO: handle the learnrate from file, and add a createfromTerminal function to allow realtime NN creation.  
+	//TODO: push learnrate to config file.
 	public static NeuralNet createFromConfigFile(String path, String inputName) {
 		ArrayList<String> configurations = new ArrayList<String>();
 		try {	
             BufferedReader br = new BufferedReader(new FileReader(path));
 			String line, name;
-			int inputsize = -1; //Because im lazy, im just making sure with my sanity checks in NN that this fails if they arent updated by the switch;
+
+			//These values fail sanity check of NN, so that malformed config crashes.
+			int inputsize = -1;
 			int hlquantity = -1;
 			int hlsize = -1;
 			int outputsize = -1;
+
 			while((line = br.readLine()) !=null) {
 				String[] tokens = line.split(", ");
 				if(tokens.length!=5) {
@@ -51,14 +57,13 @@ public class IOHandler {
 						
 					}	
 				}
-				//Currently we only support 2 hidden layers, that is much more complicated to fix, so yeah...
 				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, 0.05);
-//				System.out.println("Found the configuration");
+				ret.initialize();
 				return ret;
 			}
-//			System.out.println("Unable to find this configuration");
+
 			System.exit(1);
-			return null;//darn you java, making me return after an exit call.	
+			return null;
 		}catch(Exception e) {
 			e.printStackTrace();
 			System.exit(1);
@@ -66,7 +71,7 @@ public class IOHandler {
 		}
 	}
 	//reads in an already existing NN using serializable.
-    public static NeuralNet readFromFile(String path) {
+    public static NeuralNet readNNFromFile(String path) {
         try {
             ObjectInputStream in = new ObjectInputStream(new FileInputStream(path));
             NeuralNet model = (NeuralNet) in.readObject();
@@ -77,8 +82,14 @@ public class IOHandler {
             System.exit(1);
         }
        return null; 
-    }   
-	public static ArrayList<Image> collectImages(String path) {
+    }
+
+    /**
+     * Collects all the images stored in a CSV file into a data set, for use with either training or test data.
+     * @param path - path to the CSV file.
+     * @return List of images.
+     */
+	public static List<Image> collectImagesIntoDataSet(String path) {
         ArrayList<Image> dataSet = new ArrayList<Image>();
         try {
             BufferedReader br = new BufferedReader(new FileReader(path));

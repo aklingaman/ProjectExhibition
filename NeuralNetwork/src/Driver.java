@@ -1,16 +1,14 @@
 import java.util.*;
-import java.io.*;
+
 public class Driver {
 	static String path = "/home/aklingam/misc";
+
 	public static void main(String[] args) {
+		System.out.println(System.getProperty("user.dir"));
+		System.out.println("-----------");
 		System.out.println("Basic Neural Network made by Adam Klingaman");
-		System.out.println("Designed for use on linux systems, may require some monkeying around with file extensions/paths to work on windows");     
-		System.out.println("You have to edit the path string in the source code to match where the file is located.");
-		help();
-		System.out.println("for now, improper usage will dump excess tokens, or just crash");
-		System.out.println("Sample configurations and their names are located in config directory");	
-		System.out.println("Experiment is just a dummy function that can be edited to do whatever you want with it.");
-		System.out.println("Also note that the way Serializable works, any changes to NN's source will invalidate any models you have stored.");	
+		System.out.println("Type help for help or info for more info needed to get started for yourself. ");
+
 		Scanner sc = new Scanner(System.in);
 		String ans;
 		while((ans=sc.nextLine())!=null) {
@@ -23,6 +21,7 @@ public class Driver {
 				case "experiment": experiment();     break;
 				case "help":       help();           break;
 				case "metadata":   metadata(tokens); break;
+				case "info":       info();           break;
 				default:  System.out.println("Not an option");
 			} 
 		}		
@@ -35,17 +34,17 @@ public class Driver {
 		NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", configuration);
 		IOHandler.writeToFile(model,path+"/models/"+name);
 		System.out.println("Successfully created a model and serialized it under models");
-	}	
-	//Does training. TODO: pass things like bucket size as params.
+	}
+
 	public static void train(String[] tokens){
 		String nnPath = tokens[1];
-		List<Image> trainingSet = IOHandler.collectImages(path+"/data/mnist_train.csv");
+		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
 		if(trainingSet==null||trainingSet.size()==0) {
 			System.out.println("Unable to get training data");
 			return;
 		}
 		System.out.println("Succesfully managed to obtain training data with: "+trainingSet.size()+" data points");
-		NeuralNet model = IOHandler.readFromFile(path+"/models/"+nnPath);
+		NeuralNet model = IOHandler.readNNFromFile(path+"/models/"+nnPath);
 		if(model!=null) {
 			System.out.println("Succesfully managed to obtain the model from file");
 		} else {
@@ -86,13 +85,13 @@ public class Driver {
 	}
 	public static void test(String[] tokens) {
 		String nnPath = tokens[1];
-		ArrayList<Image> testSet = IOHandler.collectImages(path+"/data/mnist_test.csv");
+		List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
 		if(testSet==null||testSet.size()==0) { 
 			System.out.println("Error getting test data");
 			return;
 		}
 		System.out.println("Succesfully obtained testing data");
-		NeuralNet model = IOHandler.readFromFile(path+"/models/"+nnPath);
+		NeuralNet model = IOHandler.readNNFromFile(path+"/models/"+nnPath);
 		if(model!=null) {
 			System.out.println("Succesfully obtained model");
 		} else {
@@ -100,13 +99,13 @@ public class Driver {
 			System.exit(1);
 		}
 		//Begin testing procedure
-		int count = 0; //10k test images.
+		int count = 0;
 		int correct = 0;
 		int[] guesses = new int[10];
 		int[] actual = new int[10];
 		for(Image i : testSet) {
 			//System.out.println(model.firstLayerWeights[0][0]);
-			int prediction = LinAlg.vote(model.forwardProp(i.data));
+			int prediction = LinAlg.vote(model.fastForwardProp(i.data));
 			count++;
 			guesses[prediction]++;
 			actual[i.label]++;
@@ -128,11 +127,12 @@ public class Driver {
 		System.out.println("Model classified " + correct + " correctly out of " + count +  " testing records");
 		System.out.println(100.0*correct/count+"% accuracy.");
 	}
+
 	//Dummy function used for messing around with stuff. Used the word experiment to distinguish from test. 	
 	public static void experiment() {
 		System.out.println("Current experiment: making a bunch of identical NN's except with different learning rates to see which ones can converge to a solution");
 		double[] learnRates = {0.0001,0.0005, 0.001, 0.005, 0.01,0.05,0.1,0.5};
-		List<Image> trainingSet = IOHandler.collectImages(path+"/data/mnist_train.csv");
+		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
 		for(int i = 0; i<learnRates.length; i++) {
 			NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", "mnist2by20");
 			for(int j = 0; j<1; j++) {
@@ -147,11 +147,11 @@ public class Driver {
 					model.setLearnRate(learnRates[i]);	
 					double cost = model.train(bucket);
 				}
-				ArrayList<Image> testSet = IOHandler.collectImages(path+"/data/mnist_test.csv");
+				List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
 				int count = testSet.size();
 				int correct = 0;
 				for(Image l : testSet) {
-					int prediction = LinAlg.vote(model.forwardProp(l.data));
+					int prediction = LinAlg.vote(model.fastForwardProp(l.data));
 					if(prediction == l.label) {
 						correct++;
 					}
@@ -162,11 +162,25 @@ public class Driver {
 		}
 	}
 	public static void help() {
-		System.out.printf("Usage:\n\tcreate <filename> <configuration>\n\ttrain <filename>\n\ttest <filename>\n\texit\n\texperiment\n\tmetadata <filename>\n");
+		System.out.printf("Usage:\n\tcreate <filename> <configuration>\n\ttrain <filename>\n\ttest <filename>\n\texit\n\texperiment\n\tmetadata <filename>\n\tinfo");
 	}
+
+	public static void info() {
+		System.out.println("This Neural net works off of CSV files, in the format provided by https://pjreddie.com/projects/mnist-in-csv/");
+		System.out.println("I cannot provide this in git for it to work out of the box because it exceeds file size restrictions. ");
+		System.out.println("Sample configurations and their names are located in config directory");
+		System.out.println("Experiment is just a dummy function that can be edited to do whatever you want with it.");
+		System.out.println("For now, improper usage will dump excess tokens, or just crash. ");
+		System.out.println("Also note that the way Serializable works, any changes to NN's source will invalidate any models you have stored.");
+		System.out.println("Metadata will spit out all info needed to uniquely identify a neural net by its values.");
+	}
+
+
+
+
 	//prints out an overview of a NN's characteristic meta params. Does this by actually creating the NN, so its expensive, so dont spam it. 
 	public static void metadata (String[] tokens) {
-		System.out.println(IOHandler.readFromFile(path+"/models/"+tokens[1]).metadata());
+		System.out.println(IOHandler.readNNFromFile(path+"/models/"+tokens[1]).metadata());
 	}
 
 
