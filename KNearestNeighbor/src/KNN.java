@@ -15,7 +15,7 @@ public class KNN {
         ArrayList<Review> trainingData = new ArrayList<Review>();
         long startTime = System.currentTimeMillis();
         try{
-            Scanner s = new Scanner(new File("C:\\Users\\Adam\\Desktop\\HW1\\HW1_Klingaman\\data\\train.dat"));
+            Scanner s = new Scanner(new File(System.getProperty("user.dir")+File.pathSeparator+"data"+File.pathSeparator+"data.txt"));
             int i = 1;        
             while(s.hasNextLine()) {       
                 String words = s.nextLine();
@@ -47,10 +47,10 @@ public class KNN {
         HashMap<String,Double> idfWeights = Review.processReviews(trainingData);            
         System.out.println("Beginning tests, estimation for completion at 50");
         try {
-            Scanner testDataScan = new Scanner(new File("C:\\Users\\Adam\\Desktop\\HW1\\HW1_Klingaman\\data\\test.dat"));
+            Scanner testDataScan = new Scanner(new File(System.getProperty("user.dir")+File.pathSeparator+"data"+File.pathSeparator+"test.txt"));
             int i = 1;
             int k = 159;
-            File results = new File("C:\\Users\\Adam\\Desktop\\HW1\\HW1_Klingaman\\data\\results.dat");
+            File results = new File(System.getProperty("user.dir")+File.pathSeparator+"data"+File.pathSeparator+"results.txt");
             FileWriter write = new FileWriter(results);
             long time = System.currentTimeMillis();
             while(testDataScan.hasNextLine()) {

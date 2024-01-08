@@ -1,9 +1,12 @@
-//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy. 
+package main.java;//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy.
 //Most of these functions get run millions of times, so no sanity checks. 
 //Shallow functions will perform onto the first vector passed, deep allocates new memory and returns it.
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.*;
 public abstract class LinAlg {
-
+    public static Logger LOG = LogManager.getLogger();
     public static void hardamadShallow(double[] a, double[] b) {
         for(int i = 0; i<a.length; i++) {
             a[i]*=b[i];
@@ -141,10 +144,10 @@ public abstract class LinAlg {
         double[][] test2Transpose = computeTranspose(test2);        
         double[] ans2 = matrixVectorMult(test2Transpose,vector);
         for(int i = 0; i<ans.length; i++){
-            System.out.println(Arrays.toString(ans));
+            LOG.info(Arrays.toString(ans));
         }
         for(int i = 0; i<ans2.length; i++){
-            System.out.println(Arrays.toString(ans2));
+            LOG.info(Arrays.toString(ans2));
         }
         
     }

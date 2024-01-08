@@ -1,3 +1,5 @@
+package main.java;
+
 /**
  * POJO Container class for training/test data.
  */

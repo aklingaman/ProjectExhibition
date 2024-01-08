@@ -1,29 +1,20 @@
-/**
+package main.java; /**
  * This class handles IO as well as loading the values from the config for neural net specs.
  */
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.io.*;
 public class IOHandler {
-    
-    public static void writeToFile(NeuralNet model, String path) {
-        try {
-            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(path));    
-            out.writeObject(model);
-            out.flush();
-            return;
-        }catch(Exception e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-        return;
-    }
+    public static Logger LOG = LogManager.getLogger();
+
 
 	//Takes in a configuration file that outlines the NN structure, and returns an NN using that structure. 	
 	//Format: name: abc, inputsize: 784, hlquantity: 2, hlsize: 20, outputsize: 10
 	//TODO: push learnrate to config file.
 	public static NeuralNet createFromConfigFile(String path, String inputName) {
-		ArrayList<String> configurations = new ArrayList<String>();
 		try {	
             BufferedReader br = new BufferedReader(new FileReader(path));
 			String line, name;
@@ -45,7 +36,7 @@ public class IOHandler {
 				for(int i = 1; i<tokens.length; i++) {
 					String[] chunks = tokens[i].split(": ");
 					if(chunks.length!=2) {
-						System.out.println("error in config reading, wrong num: "+ chunks.length);
+						LOG.info("error in config reading, wrong num: "+ chunks.length);
 						continue;
 					}
 					int val = Integer.parseInt(chunks[1]);
@@ -58,7 +49,6 @@ public class IOHandler {
 					}	
 				}
 				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, 0.05);
-				ret.initialize();
 				return ret;
 			}
 
@@ -71,7 +61,7 @@ public class IOHandler {
 		}
 	}
 	//reads in an already existing NN using serializable.
-    public static NeuralNet readNNFromFile(String path) {
+    public static NeuralNet readModelFromFile(String path) {
         try {
             ObjectInputStream in = new ObjectInputStream(new FileInputStream(path));
             NeuralNet model = (NeuralNet) in.readObject();
@@ -82,6 +72,21 @@ public class IOHandler {
             System.exit(1);
         }
        return null; 
+    }
+
+    public static void writeModelToFile(NeuralNet model, String path) {
+        try {
+            File f = new File(path);
+            f.createNewFile();
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(f,false));
+            out.writeObject(model);
+            out.flush();
+            return;
+        }catch(Exception e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+        return;
     }
 
     /**
@@ -109,5 +114,9 @@ public class IOHandler {
         }
         return null; //Needed for compilation only
     }
+
+
+
+
     
 }
