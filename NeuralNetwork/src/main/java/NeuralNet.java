@@ -1,18 +1,30 @@
-//Version 2 of the NN class. Supports 2 different types of NN objects. One is the actual NN, the other is just a contained to store changes to a NN for use with backprop.
+package main.java;//Version 2 of the NN class. Supports 2 different types of NN objects. One is the actual NN, the other is just a container to store changes to a NN for use with backprop.
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.io.*;
 
 public class NeuralNet implements Serializable{
-	private int HLS, HLQ, insize, outsize;    
+	public static Logger LOG = LogManager.getLogger();
+	private int HLS, HLQ, insize, outsize;
 	private double learnRate;
 	public NNLayer[] layers;
-    
-    public NeuralNet(){}    
 
+	/**
+	 * Creates a new neural net. YOU MUST INVOKE INITIALIZE IF YOU WANT THE NET TO HAVE ANY VALUES.
+	 *
+	 *
+	 * @param inputSize: # of elements in input vector. (standard mnist would be 28*28 = 784)
+	 * @param HLS
+	 * @param HLQ
+	 * @param outputSize
+	 * @param learnRate
+	 */
     public NeuralNet(int inputSize, int HLS, int HLQ, int outputSize, double learnRate) {
 		if(inputSize<1 || HLS < 1 || HLQ < 1 || outputSize < 2 ) {
-			System.out.println("NN initializer failed sanity check on input parameters.");
+			LOG.error("NN initializer failed sanity check on input parameters.");
 			System.exit(1); 
 		}        
 		this.insize = inputSize;
@@ -23,17 +35,31 @@ public class NeuralNet implements Serializable{
 		layers = new NNLayer[HLQ+1]; //+1 is for the output layer.
 		for(int i = 0; i<=HLQ; i++) {
 			if(i == 0) {
-				layers[i] = new NNLayer(HLS,HLS,inputSize);
+				layers[i] = new NNLayer(HLS,inputSize);
 				continue;
 			}
 			if(i==HLQ) {
-				layers[i] = new NNLayer(outputSize,outputSize,HLS);
+				layers[i] = new NNLayer(outputSize,HLS);
 				continue;
 			}
-			layers[i] = new NNLayer(HLS,HLS,HLS);
-		}	
-        Random rd = new Random();
-		rd.setSeed(3);
+			layers[i] = new NNLayer(HLS,HLS);
+		}
+    }
+
+	/**
+	 * Sets up a NN with some random initial values. Pass in a value to seed if you like.
+	 *
+	 */
+	public void initialize() {
+		actuallyInitialize(new Random().nextInt());
+	}
+
+	public void initialize(Integer randomSeed) {
+		actuallyInitialize(randomSeed);
+	}
+
+	private void actuallyInitialize(Integer randomSeed) {
+		Random rd = new Random(randomSeed);
 		for(int i = 0; i<layers.length; i++) {
 			double[][] weight = layers[i].weightMatrix;
 			double[] bias = layers[i].biasVector;
@@ -44,53 +70,45 @@ public class NeuralNet implements Serializable{
 			}
 			for(int j = 0; j<bias.length; j++) {
 				bias[j] = rd.nextDouble()*10-5;
-			}	
-		}			
-    }
-    //Makes a container NN of passed shape. We avoid the main constructor and make a default so that we dont put in any values, we just make all the containers the right size off the reference. 
-    public NeuralNet neuralNetContainer() {
-		NeuralNet ret = new NeuralNet();
-		ret.layers = new NNLayer[HLQ+1]; //+1 is for the output layer.
-		for(int i = 0; i<=HLQ; i++) {
-			if(i == 0) {
-				ret.layers[i] = new NNLayer(HLS,HLS,insize);
-				continue;
 			}
-			if(i==HLQ) {
-				ret.layers[i] = new NNLayer(outsize,outsize,HLS);
-				continue;
-			}
-			ret.layers[i] = new NNLayer(HLS,HLS,HLS);
 		}
-        return ret;   
-    }
+	}
+
+	/**
+	 * Creates a new main.java.NeuralNet that has NO VALUES, but is the same size/shape as the caller.
+	 *
+	 *
+	 * @Return: an EMPTY net.
+	 */
+	public NeuralNet spawnContainerNet() {
+		return new NeuralNet(insize,HLS,HLQ,outsize,learnRate);
+	}
 
 	public double getLearnRate(){ return this.learnRate; }
 	public void   setLearnRate(double newLearnRate) { this.learnRate = newLearnRate; }
 
-	
 	public double train(List<Image> bucket) {
-		NeuralNet grandDelta  = neuralNetContainer(); //Expresses the entire buckets desired changes
-		NeuralNet transferNet = neuralNetContainer(); //Expresses one element of the bucket's desired changes.
+		NeuralNet grandDelta  = spawnContainerNet(); //Expresses the entire buckets desired changes
+		NeuralNet transferNet = null; //Expresses one element of the bucket's desired changes.
         double cost = 0.0; //error metric, used for printing.
 		int size = bucket.size(); 
 		for(int i = 0; i<size; i++) { 
             Image image = bucket.get(i);
-			computeDelta(image);
+			transferNet = computeDelta(image);
             grandDelta.combineNeuralNets(transferNet); 
-			double[] output = forwardProp(image.data); //held for optional printing
+			double[] output = fastForwardProp(image.data); //held for optional printing
             cost+=cost(output,image.label);
-			//System.out.println(Arrays.toString(output));
+			//LOG.info(Arrays.toString(output));
         }   
         cost/=bucket.size();
 		grandDelta.multiplyNNByScalar(-1.0*learnRate/bucket.size()); //Scales the delta NN by the learn rate factor. 
-		this.combineNeuralNets(grandDelta);
+		combineNeuralNets(grandDelta);
 		return cost;
 	}
 
     //Computes the desired changes to the neuralnet for a particular input, and stores into a delta NN container.
     public NeuralNet computeDelta(Image image) {	
-        NeuralNet delta = neuralNetContainer();
+        NeuralNet delta = spawnContainerNet();
 		double[][] weightedActivations = new double[HLQ+1][];	//Holds our delta l's 
 		double[][] activations = new double[HLQ+1][]; //jagged array, each subarray has different size
 		//Forward pass, we use this instead of forwardprop() because this holds onto intermediate data rather than just output
@@ -104,8 +122,8 @@ public class NeuralNet implements Serializable{
 
 		/*	
 		//Test to verify that the forward pass was accurate in train compared to forward prop. 
-		System.out.println("train's forward pass: "+Arrays.toString(activations[HLQ]));
-		System.out.println("Verified forward pass: "+Arrays.toString(forwardProp(image.data)));
+		LOG.info("train's forward pass: "+Arrays.toString(activations[HLQ]));
+		LOG.info("Verified forward pass: "+Arrays.toString(forwardProp(image.data)));
 		*/
 
 		double[][] activationErrors = activations; //Renaming for simplicity
@@ -118,8 +136,8 @@ public class NeuralNet implements Serializable{
 		}	
 		//output
 		for(int i = 0; i<HLQ; i++) { 
-			for(int j = 0; j<delta.layers[i].biasVector.length; j++) { 
-				delta.layers[i].biasVector[j] = activationErrors[i][j];	
+			for(int j = 0; j<delta.layers[i].biasVector.length; j++) {
+				delta.layers[i].biasVector[j] = activationErrors[i][j];
 			}
 			double[] activation = (i==0)? image.data : activations[i-1];     
 			for(int j = 0; j<delta.layers[i].weightMatrix.length; j++) { 
@@ -153,7 +171,10 @@ public class NeuralNet implements Serializable{
 
 	//Similar to combine NeuralNets, but instead of averaging the Nets, it takes in the parameter and replaces the Callers NN. This is used to keep the memory allocation down.  
 	//Currently unused because its unneeded, changed compute delta instead. 
-    public void replaceNeuralNets(NeuralNet delta) {
+    public void replaceNeuralNetValues(NeuralNet delta) {
+		if(!isSameShape(delta)){
+			LOG.error("Cannot combine these nets, not the same shape. ");
+		}
 		for(int i = 0; i<layers.length; i++) {
 			double[][] weightA = layers[i].weightMatrix;
 			double[][] weightB = delta.layers[i].weightMatrix;
@@ -188,14 +209,20 @@ public class NeuralNet implements Serializable{
 		}			
 	}
 
-    //Returns a vector prediction of the value that gets passed to the NN. Optimized for testing speed and does not hold onto the partial values in the net needed for backprop.
-    public double[] forwardProp(double[] image) {
+	/**
+	 * Puts an image through the NN, and gets the output expressed as a vector.
+	 * Does not hold onto any intermediate vectors.
+	 *
+	 * @param image - the image you wish to classify
+	 * @return - vector prediction of the image.
+	 */
+	public double[] fastForwardProp(double[] image) {
         if(image.length!=insize) {
-            System.out.println("Error (NN): bad image size passed to prediction");
+            LOG.error("Bad image size passed to prediction");
         }
 
 		
-		double[] activation = Arrays.copyOf(image, image.length); //TODO: make this unneeded.
+		double[] activation = image;
 		for(int i = 0; i<HLQ+1; i++) {
 			activation = LinAlg.matrixVectorMult(layers[i].weightMatrix,activation);
 			LinAlg.vectorAdditionShallow(activation, layers[i].biasVector);
@@ -204,20 +231,43 @@ public class NeuralNet implements Serializable{
 		return activation;
     }
 
-    //Returns the cost of a particular guess. Only use when debugging, because its slow.
-    public static double cost(double[] prediction, int realAns){
+
+	/**
+	 * Returns the "cost" of a particular guess vector. This cost is expressed as the square of the differences between the desired value and observed value.
+	 * A perfect guess will have a cost of 0.
+	 * This value is used as a diagnostic, but is COMPUTATIONALLY EXPENSIVE IN MASS QUANTITIES, so is only done in debug mode.
+	 *
+	 * @param prediction - output vector of a data point being passed through NN
+	 * @param realAns - the actual label of what the value should be
+	 * @return - decimal value expressing cost, lower is better.
+	 */
+	public static double cost(double[] prediction, int realAns){
 		double ret = 0;
         for(int i = 0; i<prediction.length; i++) {
-            if(i==realAns) {
-                ret+=Math.pow(prediction[i]-1,2);
-            } else {
-                ret+=Math.pow(prediction[i],2);
-            }
-            
+			double val = prediction[i]-(i==realAns?1:0);
+        	ret+=val*val; //Math.pow(val,2) is more expensive since it has to deal with general case, and we dont.
         }
-        return ret/2;                 
-		
+        return ret/2;
     }
+
+	/**
+	 * Compares if 2 neural nets have the same shape. Used to know whether we can "add" 2 nets together.
+	 * Does not compare learn rates.
+	 *
+	 * @param comparedNet
+	 * @return true iff nets have same "shape" (HLQ,HLS,insize,outsize)
+	 */
+	public boolean isSameShape(NeuralNet comparedNet) {
+		if( this.HLQ!=comparedNet.HLQ         ||
+			this.HLS!=comparedNet.HLS         ||
+			this.insize!=comparedNet.insize   ||
+			this.outsize!=comparedNet.outsize
+		) {
+			return false;
+		}
+		return true;
+	}
+
 	//Returns a String containing a lot of metadata, used by drivers metadata function to print to user in command line
 	public String metadata() {
 		StringBuilder sb = new StringBuilder();
@@ -227,8 +277,6 @@ public class NeuralNet implements Serializable{
 		sb.append("Output Layer Size: "     + this.outsize   +"\n");
 		sb.append("Learn rate: "            + this.learnRate +"\n");
 		return sb.toString();
-		
-	
 	}
 
 }

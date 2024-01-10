@@ -1,9 +1,12 @@
-//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy. 
+package main.java;//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy.
 //Most of these functions get run millions of times, so no sanity checks. 
 //Shallow functions will perform onto the first vector passed, deep allocates new memory and returns it.
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.*;
 public abstract class LinAlg {
-
+    public static Logger LOG = LogManager.getLogger();
     public static void hardamadShallow(double[] a, double[] b) {
         for(int i = 0; i<a.length; i++) {
             a[i]*=b[i];
@@ -31,6 +34,7 @@ public abstract class LinAlg {
         }	
         return c;		
     }
+
     //returns index of maximal element passed. Ties broken by lowest index.
     public static int vote(double[] a) {
         int max = 0;
@@ -40,18 +44,7 @@ public abstract class LinAlg {
         return max;
     }	
 
-    //Simple matrix vector mult. Shallow vs deep doesnt make sense because we need the entire vector until the end. 
     public static double[] matrixVectorMult(double[][] matrix, double[] vector) {
-        //System.out.println("Enterred matrixVectorMult with matrix with " + matrix.length + " rows and " + matrix[0].length + " cols and a vector with length " + vector.length);
-
-        /*
-           if(matrix[0].length!=vector.length) {
-           System.out.println("Error: matrix vector size mismatch");
-           System.out.println("Matrix has: " + matrix.length + " rows, and " + matrix[0].length+" cols.");
-           System.out.println("Vector has: " + vector.length + " elements");
-           System.exit(1);
-           }
-         */
         double[] ans = new double[matrix.length]; 
         for(int i = 0; i<matrix.length; i++) { 
             ans[i] = 0;
@@ -61,6 +54,7 @@ public abstract class LinAlg {
         }
         return ans;
     }
+
     //Performs matrix vector mult but on the matrix' transpose. More efficient than actually calculating the transpose	
     public static double[] matrixVectorMultTranspose(double[][] matrix, double[] vector) {
         double[] ans = new double[matrix[0].length]; 
@@ -76,8 +70,6 @@ public abstract class LinAlg {
     }
 
 
-
-    //still exists for debugging reasons. 
     public static double[][] computeTranspose(double[][] matrix) {
         double[][] transposeMatrix = new double[matrix[0].length][matrix.length];
         for(int i = 0; i<transposeMatrix.length; i++) {
@@ -88,7 +80,8 @@ public abstract class LinAlg {
         return transposeMatrix; 
     }
 
-    //Now comes the sigmoidVector and sigmoidprimevector functions. These are optimized for speed and so they look terrible.
+    //These next functions perform sigmoid function operations on the entire vector.
+
     public static void sigmoidVectorShallow(double[] a) {
         for(int i = 0; i<a.length; i++) {
             a[i] = 1.0/(1.0+(Math.pow(Math.E,a[i]*-1.0)));
@@ -119,7 +112,9 @@ public abstract class LinAlg {
         }
         return b;
     }	
-    
+
+
+    //TODO: Junit.
     //Testing main
     public static void main(String[] args) {
         matrixVectorTransposeMultEqualsTransposeThenMatrixVectorMult();
@@ -149,10 +144,10 @@ public abstract class LinAlg {
         double[][] test2Transpose = computeTranspose(test2);        
         double[] ans2 = matrixVectorMult(test2Transpose,vector);
         for(int i = 0; i<ans.length; i++){
-            System.out.println(Arrays.toString(ans));
+            LOG.info(Arrays.toString(ans));
         }
         for(int i = 0; i<ans2.length; i++){
-            System.out.println(Arrays.toString(ans2));
+            LOG.info(Arrays.toString(ans2));
         }
         
     }

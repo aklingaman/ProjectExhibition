@@ -1,4 +1,8 @@
-//traning data structure. 
+package main.java;
+
+/**
+ * POJO Container class for training/test data.
+ */
 public class Image {
     public int label;
     public double[] data;

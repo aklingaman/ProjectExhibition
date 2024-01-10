@@ -43,7 +43,7 @@ public class Review {
         } 
      
         StringTokenizer tokenizer = new StringTokenizer(review, "\"*`()?!<>-:;/,.'%+{}[] "); //Removing the sentiment manually lets me use dashes as a extra delimiter which is super needed ( see first review )
-        StopList stop = new StopList(new File("C:\\Users\\Adam\\Desktop\\HW1\\HW1_Klingaman\\data\\stopwords.txt"));
+        StopList stop = new StopList(new File(System.getProperty("user.dir")+File.pathSeparator+"data"+File.pathSeparator+"stopwords.txt"));
         Stemmer stem = new Stemmer();
         while(tokenizer.hasMoreTokens()) {
             String word = tokenizer.nextToken();
@@ -75,7 +75,7 @@ public class Review {
         return false; //Unreachable under the assumption that the review ends with a #EOF, but regardless java needs it. 
     }
 
-    //Here we conver the hashmap to a csv file. This allows us to run the trainer and the tester seperately by just loading the file. Returns success or fail.   
+    //Here we convert the hashmap to a csv file. This allows us to run the trainer and the tester seperately by just loading the file. Returns success or fail.
 
     
     public static boolean writeHashMapToFile(HashMap<String, Integer> wordbag) {
