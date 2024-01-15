@@ -65,11 +65,11 @@ public class NeuralNet implements Serializable{
 			double[] bias = layers[i].biasVector;
 			for(int j = 0; j<weight.length; j++) {
 				for(int k = 0; k<weight[j].length; k++) {
-					weight[j][k] = rd.nextDouble()*10-5;
+					weight[j][k] = rd.nextDouble()*6-3;
 				}
 			}
 			for(int j = 0; j<bias.length; j++) {
-				bias[j] = rd.nextDouble()*10-5;
+				bias[j] = rd.nextDouble()*6-3;
 			}
 		}
 	}
@@ -101,7 +101,7 @@ public class NeuralNet implements Serializable{
 			//LOG.info(Arrays.toString(output));
         }   
         cost/=bucket.size();
-		grandDelta.multiplyNNByScalar(-1.0*learnRate/bucket.size()); //Scales the delta NN by the learn rate factor. 
+		grandDelta.multiplyNNByScalar(-1.0*learnRate/bucket.size()); //Scales the delta NN by the learn rate factor.
 		combineNeuralNets(grandDelta);
 		return cost;
 	}
@@ -109,46 +109,50 @@ public class NeuralNet implements Serializable{
     //Computes the desired changes to the neuralnet for a particular input, and stores into a delta NN container.
     public NeuralNet computeDelta(Image image) {	
         NeuralNet delta = spawnContainerNet();
-		double[][] weightedActivations = new double[HLQ+1][];	//Holds our delta l's 
+		double[][] weightedActivations = new double[HLQ+1][];	//Holds our delta l's
 		double[][] activations = new double[HLQ+1][]; //jagged array, each subarray has different size
 		//Forward pass, we use this instead of forwardprop() because this holds onto intermediate data rather than just output
 		for(int i = 0; i<=HLQ; i++) {
-			double[] previousActivation = (i==0)? image.data : activations[i-1];
-			activations[i] = LinAlg.matrixVectorMult(layers[i].weightMatrix, previousActivation);    
-			LinAlg.vectorAdditionShallow(activations[i],layers[i].biasVector); 
-			weightedActivations[i] = LinAlg.sigmoidPrimeVectorDeep(activations[i]);	
-			LinAlg.sigmoidVectorShallow(activations[i]);
+			double[] previousActivation = (i==0)? image.data : weightedActivations[i-1];
+			activations[i] = LinAlg.matrixVectorMult(layers[i].weightMatrix, previousActivation);
+			LinAlg.vectorAdditionShallow(activations[i],layers[i].biasVector);
+			weightedActivations[i] = LinAlg.sigmoidVectorDeep(activations[i]);
+			//LinAlg.sigmoidVectorShallow(activations[i]);
 		}
 
-		/*	
-		//Test to verify that the forward pass was accurate in train compared to forward prop. 
+		/*
+		//Test to verify that the forward pass was accurate in train compared to forward prop.
 		LOG.info("train's forward pass: "+Arrays.toString(activations[HLQ]));
-		LOG.info("Verified forward pass: "+Arrays.toString(forwardProp(image.data)));
+		LOG.info("Verified forward pass: "+Arrays.toString(fastForwardProp(image.data)));
+		LOG.info("---------------------------");
 		*/
 
-		double[][] activationErrors = activations; //Renaming for simplicity
-		activationErrors[HLQ][image.label]-=1; //A^L-y = gradient vector	
-		LinAlg.hardamadShallow(activationErrors[HLQ], weightedActivations[HLQ]); //output error
+
+		LOG.trace("Output weighted activations (label {}): {}",image.label,weightedActivations[HLQ]);
+		LinAlg.sigmoidPrimeVectorShallow(activations[HLQ]);
+		weightedActivations[HLQ][image.label] -= 1; //aL-y
+		LinAlg.hardamadShallow(activations[HLQ], weightedActivations[HLQ]); //delta capital L
+		LOG.trace("Output activation errors (label {}): {}",image.label,activations[HLQ]);
+		//LOG.trace("----------------------");
 		//Backprop pass
         for(int i = HLQ-1; i>=0; i--) {		
-			activationErrors[i] = LinAlg.matrixVectorMultTranspose(layers[i+1].weightMatrix,activationErrors[i+1]);
-			LinAlg.hardamadShallow(activationErrors[i],weightedActivations[i]);
+			weightedActivations[i] = LinAlg.matrixVectorMultTranspose(layers[i+1].weightMatrix,activations[i+1]);
+			LinAlg.sigmoidPrimeVectorShallow(activations[i]);
+			LinAlg.hardamadShallow(activations[i],weightedActivations[i]);
 		}	
 		//output
 		for(int i = 0; i<HLQ; i++) { 
 			for(int j = 0; j<delta.layers[i].biasVector.length; j++) {
-				delta.layers[i].biasVector[j] = activationErrors[i][j];
+				delta.layers[i].biasVector[j] = activations[i][j];
 			}
 			double[] activation = (i==0)? image.data : activations[i-1];     
 			for(int j = 0; j<delta.layers[i].weightMatrix.length; j++) { 
 				for(int k = 0; k<delta.layers[i].weightMatrix[j].length; k++) {
-					delta.layers[i].weightMatrix[j][k] = activation[k]*activationErrors[i][j];
+					delta.layers[i].weightMatrix[j][k] = activation[k]*activations[i][j];
 				}
 			}
 		}
-		
-		//Now we test that the delta holds what we wanted it to hold. 
-       return delta; 
+       	return delta;
     }
 
 	//takes in a NN and combines with NN caller. I originally had a factor multiplier, but i removed it in favor of having a separate function to handle it. In the interest of speed, i may bring it back to see what that does to the runtime. 

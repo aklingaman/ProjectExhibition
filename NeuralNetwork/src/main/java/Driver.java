@@ -1,14 +1,16 @@
 package main.java;
 
+import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class Driver {
 	public static Logger LOG = LogManager.getLogger();
-	public static String path = System.getProperty("user.dir");
+	public static String path = System.getProperty("user.dir")+File.separator+"NeuralNetwork";
 
 	public static void main(String[] args) {
 		LOG.info("Basic Neural Network made by Adam Klingaman");
@@ -35,6 +37,7 @@ public class Driver {
 
 	//attempt to create a NN given the following name and configuration, returns success or fail. 
 	public static void create(String[] tokens) {
+		LOG.info("Creating new model");
 		String name = tokens[1];
 		String configuration = tokens[2];
 		NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", configuration);
@@ -43,11 +46,12 @@ public class Driver {
 		} else {
 			model.initialize();
 		}
-		IOHandler.writeModelToFile(model,path+"/models/"+name);
+		IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + name);
 		LOG.info("Successfully created a model and serialized it under models");
 	}
 
 	public static void train(String[] tokens){
+		LOG.info("Training model");
 		String nnPath = tokens[1];
 		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
 		if(trainingSet==null||trainingSet.size()==0) {
@@ -60,14 +64,15 @@ public class Driver {
 			LOG.error("Unable to find file");
 			System.exit(1);
 		}
-		LOG.info("Succesfully managed to obtain the model from file");
-		LOG.info("Do not close this until it says training complete or progress will be lost.");
-		int printFrequency = 500;  //1 out of every PrintFrequency buckets, gets some stuff printed.
-		int epochCount = 5000;
+		LOG.info("Succesfully managed to obtain model from file.");
+		LOG.info("Training is saved after every print.");
+		int printFrequency = 100;  //1 out of every PrintFrequency buckets, gets some stuff printed.
+		int epochCount = 50000;
 		long startTime = System.currentTimeMillis();
 		int trainingSetSize = trainingSet.size();	
-		int bucketSize = 100;
+		int bucketSize = 1000;
 		model.setLearnRate(0.01);
+		LOG.info("Epoch Count: {}, PrintFrequency: {}, BucketSize: {}",epochCount,printFrequency,bucketSize);
 		ArrayList<Image> bucket = new ArrayList<Image>();
 		for(int i = 0; i<epochCount; i++) {
 			bucket.clear();
@@ -79,12 +84,14 @@ public class Driver {
 			double cost = model.train(bucket);
 			if(i%printFrequency==0) {
 				LOG.info("Training bucket num: " + i+" avg cost: " + cost);
+				IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + nnPath);
 			}
 		}	 
 		LOG.info("Training complete, total time: " + 1.0*(System.currentTimeMillis()-startTime)/1000 + " seconds.");
-		IOHandler.writeModelToFile(model,path + "/models/" + nnPath);
+		IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + nnPath);
 	}
 	public static void test(String[] tokens) {
+		LOG.info("Testing Model");
 		String nnPath = tokens[1];
 		List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
 		if(testSet==null||testSet.size()==0) { 
@@ -113,28 +120,22 @@ public class Driver {
 				correct++;
 			} 
 		}
-		String guessesDist = Arrays.stream(guesses).mapToObj(g->""+g+": "+guesses[g]).collect(Collectors.joining(", "));
-		String actualDist = Arrays.stream(actual).mapToObj(a->""+a+": "+actual[a]).collect(Collectors.joining(", "));
-		LOG.info("Test results: ");
-		LOG.info("Distribution of model guesses: ");
-		LOG.info(guessesDist);
-		LOG.info("");
-		LOG.info("Distribution of actual images: ");
-		LOG.info(actualDist);
-		LOG.info("");
-		LOG.info("Model classified {} correctly out of {} testing records",correct,count);
-		LOG.info(100.0*correct/count+"% accuracy.");
+		printTestResults(guesses,actual);
+		LOG.info("Model classified {} correctly out of {} testing records for a {}% accuracy",correct,count,100.0*correct/count);
 	}
 
 	//Dummy function used for messing around with stuff. Used the word experiment to distinguish from test. 	
 	public static void experiment() {
 		LOG.info("Current experiment: making a bunch of identical NN's except with different learning rates to see which ones can converge to a solution");
 		double[] learnRates = {0.0001,0.0005, 0.001, 0.005, 0.01,0.05,0.1,0.5};
+		int numRunsPerLearnRate = 3;
+		int epochCount = 3000;
 		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
 		for(int i = 0; i<learnRates.length; i++) {
 			NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", "mnist2by20");
-			for(int j = 0; j<1; j++) {
-				for(int k = 0; k<10000; k++) { 
+			model.initialize();
+			for(int j = 0; j<numRunsPerLearnRate; j++) {
+				for(int k = 0; k<epochCount; k++) {
 					ArrayList<Image> bucket = new ArrayList<Image>();
 					int size = 0;
 					while(size<100) { //Change the 100 to change how big the buckets are.
@@ -155,7 +156,7 @@ public class Driver {
 					}
 				}
 				double accuracy = 1.0*correct/count;
-				LOG.info("learnRate: " + learnRates[i] + " run " + j + "/5" + ", Accuracy: " + accuracy);
+				LOG.info("learnRate: {}, run {}/{}, Accuracy: {}",learnRates[i],j+1,numRunsPerLearnRate,accuracy);
 			}
 		}
 	}
@@ -184,5 +185,17 @@ public class Driver {
 	public static void exit(){
 		System.exit(0);
 	}
+
+	private static void printTestResults(int[] guesses, int[] actual) {
+		String guessesDist = IntStream.range(0,guesses.length).mapToObj(i->""+i+": "+guesses[i]).collect(Collectors.joining(", "));
+		String actualDist = IntStream.range(0,actual.length).mapToObj(i->""+i+": "+actual[i]).collect(Collectors.joining(", "));
+		LOG.info("Test results: ");
+		LOG.info("Distribution of model guesses: ");
+		LOG.info(guessesDist);
+		LOG.info("");
+		LOG.info("Distribution of actual images: ");
+		LOG.info(actualDist);
+	}
+
 
 }

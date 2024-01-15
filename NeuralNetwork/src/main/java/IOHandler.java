@@ -75,7 +75,8 @@ public class IOHandler {
     }
 
     public static void writeModelToFile(NeuralNet model, String path) {
-        try {
+        LOG.trace("Writing model to path - {}",path);
+	    try {
             File f = new File(path);
             f.createNewFile();
             ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(f,false));
