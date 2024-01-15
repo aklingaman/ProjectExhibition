@@ -1,10 +1,13 @@
-package main.java;
+package main.java.frontFacing;
 
 import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import main.java.Image;
+import main.java.util.LinAlg;
+import main.java.NeuralNet;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -64,14 +67,14 @@ public class Driver {
 			LOG.error("Unable to find file");
 			System.exit(1);
 		}
-		LOG.info("Succesfully managed to obtain model from file.");
+		LOG.info("Successfully managed to obtain model from file.");
 		LOG.info("Training is saved after every print.");
 		int printFrequency = 100;  //1 out of every PrintFrequency buckets, gets some stuff printed.
 		int epochCount = 50000;
 		long startTime = System.currentTimeMillis();
 		int trainingSetSize = trainingSet.size();	
-		int bucketSize = 1000;
-		model.setLearnRate(0.01);
+		int bucketSize = 100;
+		model.setLearnRate(0.1);
 		LOG.info("Epoch Count: {}, PrintFrequency: {}, BucketSize: {}",epochCount,printFrequency,bucketSize);
 		ArrayList<Image> bucket = new ArrayList<Image>();
 		for(int i = 0; i<epochCount; i++) {

@@ -1,7 +1,11 @@
-package main.java; /**
+package main.java.frontFacing; /**
  * This class handles IO as well as loading the values from the config for neural net specs.
  */
 
+import main.java.Image;
+import main.java.NeuralNet;
+import main.java.util.activations.ActivationFunctionProvider;
+import main.java.util.activations.SigmoidActivationFunctionProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -24,10 +28,11 @@ public class IOHandler {
 			int hlquantity = -1;
 			int hlsize = -1;
 			int outputsize = -1;
+            ActivationFunctionProvider activationFunc = null;
 
 			while((line = br.readLine()) !=null) {
 				String[] tokens = line.split(", ");
-				if(tokens.length!=5) {
+				if(tokens.length!=6) {
 					continue;
 				}
 				if(!tokens[0].split(": ")[1].equals(inputName)) {
@@ -39,16 +44,22 @@ public class IOHandler {
 						LOG.info("error in config reading, wrong num: "+ chunks.length);
 						continue;
 					}
-					int val = Integer.parseInt(chunks[1]);
 					switch(i) {
-						case 1: inputsize  = val; break;
-						case 2: hlquantity = val; break;
-						case 3: hlsize     = val; break;
-						case 4: outputsize = val; break;
+						case 1: inputsize  = Integer.parseInt(chunks[1]); break;
+						case 2: hlquantity = Integer.parseInt(chunks[1]); break;
+						case 3: hlsize     = Integer.parseInt(chunks[1]); break;
+						case 4: outputsize = Integer.parseInt(chunks[1]); break;
+                        case 5:
+                            switch(chunks[1]) {
+                                case "sigmoid":
+                                    activationFunc = SigmoidActivationFunctionProvider.getInstance();
+                                    break;
+                            }
+
 						
 					}	
 				}
-				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, 0.05);
+				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, 0.05, activationFunc);
 				return ret;
 			}
 

@@ -1,4 +1,4 @@
-package main.java;//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy.
+package main.java.util;//Contains a bunch of static linear algebra functions, primarily split on a shallow copy and a deep copy.
 //Most of these functions get run millions of times, so no sanity checks. 
 //Shallow functions will perform onto the first vector passed, deep allocates new memory and returns it.
 import org.apache.logging.log4j.LogManager;
@@ -80,76 +80,28 @@ public abstract class LinAlg {
         return transposeMatrix; 
     }
 
-    //These next functions perform sigmoid function operations on the entire vector.
-
-    public static void sigmoidVectorShallow(double[] a) {
-        for(int i = 0; i<a.length; i++) {
-            a[i] = 1.0/(1.0+(Math.pow(Math.E,a[i]*-1.0)));
-            //a[i] = a[i]/(1+Math.abs(a[i]));
-        }
-    }
-    public static double[] sigmoidVectorDeep(double[] a) {
-        double[] b = new double[a.length];
-        for(int i = 0; i<a.length; i++) {
-            b[i] = 1.0/(1.0+(Math.pow(Math.E,a[i]*-1.0)));	
-            //b[i] = a[i]/(1+Math.abs(a[i]));
-        }
-        return b;
-    }
-    public static void sigmoidPrimeVectorShallow(double[] a) {
-        for(int i = 0; i<a.length; i++) {
-            double sigmoid = 1.0/(1.0+(Math.pow(Math.E,a[i]*-1.0)));
-            //double sigmoid = a[i]/(1+Math.abs(a[i]));
-            a[i] = sigmoid*(1-sigmoid);
-        }
-    }
-    public static double[] sigmoidPrimeVectorDeep(double[] a) {
-        double[] b = new double[a.length];
-        for(int i = 0; i<a.length; i++) {
-            double sigmoid = 1.0/(1.0+(Math.pow(Math.E,a[i]*-1.0)));
-            //double sigmoid = a[i]/(1+Math.abs(a[i]));
-            b[i] = sigmoid*(1-sigmoid);
-        }
-        return b;
-    }	
 
 
-    //TODO: Junit.
-    //Testing main
-    public static void main(String[] args) {
-        matrixVectorTransposeMultEqualsTransposeThenMatrixVectorMult();
-    }    
-    
-
-    public static void matrixVectorTransposeMultEqualsTransposeThenMatrixVectorMult() {
-        double[][] test = new double[5][3];
-        double[][] test2 = new double[5][3];
-        double[] vector = new double[5];
-        Random rd = new Random(1);
-        Random rd2 = new Random(1);
-        for(int i = 0; i<test.length; i++) {
-            for(int j = 0; j<test[0].length; j++) {
-                test[i][j] = rd.nextDouble();
-                test2[i][j] = rd2.nextDouble();
+    public static void reluShallowVector(double[] a) {
+        for(int i = 0; i<a.length; i++) {
+            if(a[i]<0) {
+                a[i]=0;
             }
         }
-        for(int i = 0; i<vector.length; i++) {
-            vector[i] = rd.nextDouble();
-        }
-        
-        double[] ans = matrixVectorMultTranspose(test,vector);
+    }
 
-
-
-        double[][] test2Transpose = computeTranspose(test2);        
-        double[] ans2 = matrixVectorMult(test2Transpose,vector);
-        for(int i = 0; i<ans.length; i++){
-            LOG.info(Arrays.toString(ans));
+    public static double[] reluDeepVector(double[] a) {
+        double[] b = new double[a.length];
+        for(int i = 0; i<a.length; i++) {
+            b[i] = a[i]>0?a[i]:0;
         }
-        for(int i = 0; i<ans2.length; i++){
-            LOG.info(Arrays.toString(ans2));
+        return b;
+    }
+
+    public static void reluPrimeShallowVector(double[] a) {
+        for(int i = 0; i<a.length; i++) {
+            a[i]=a[i]>0?1:0;
         }
-        
     }
 
 }

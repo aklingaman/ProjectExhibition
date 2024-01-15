@@ -1,5 +1,7 @@
 package main.java;//Version 2 of the NN class. Supports 2 different types of NN objects. One is the actual NN, the other is just a container to store changes to a NN for use with backprop.
 
+import main.java.util.LinAlg;
+import main.java.util.activations.ActivationFunctionProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,6 +13,7 @@ public class NeuralNet implements Serializable{
 	private int HLS, HLQ, insize, outsize;
 	private double learnRate;
 	public NNLayer[] layers;
+	private ActivationFunctionProvider activationFunction;
 
 	/**
 	 * Creates a new neural net. YOU MUST INVOKE INITIALIZE IF YOU WANT THE NET TO HAVE ANY VALUES.
@@ -22,8 +25,8 @@ public class NeuralNet implements Serializable{
 	 * @param outputSize
 	 * @param learnRate
 	 */
-    public NeuralNet(int inputSize, int HLS, int HLQ, int outputSize, double learnRate) {
-		if(inputSize<1 || HLS < 1 || HLQ < 1 || outputSize < 2 ) {
+    public NeuralNet(int inputSize, int HLS, int HLQ, int outputSize, double learnRate, ActivationFunctionProvider activationFunction) {
+		if(inputSize<1 || HLS < 1 || HLQ < 1 || outputSize < 2 || activationFunction==null) {
 			LOG.error("NN initializer failed sanity check on input parameters.");
 			System.exit(1); 
 		}        
@@ -32,6 +35,7 @@ public class NeuralNet implements Serializable{
 		this.HLS = HLS;
 		this.HLQ = HLQ;
 		this.learnRate = learnRate;
+		this.activationFunction=activationFunction;
 		layers = new NNLayer[HLQ+1]; //+1 is for the output layer.
 		for(int i = 0; i<=HLQ; i++) {
 			if(i == 0) {
@@ -81,7 +85,7 @@ public class NeuralNet implements Serializable{
 	 * @Return: an EMPTY net.
 	 */
 	public NeuralNet spawnContainerNet() {
-		return new NeuralNet(insize,HLS,HLQ,outsize,learnRate);
+		return new NeuralNet(insize,HLS,HLQ,outsize,learnRate,activationFunction);
 	}
 
 	public double getLearnRate(){ return this.learnRate; }
@@ -116,20 +120,14 @@ public class NeuralNet implements Serializable{
 			double[] previousActivation = (i==0)? image.data : weightedActivations[i-1];
 			activations[i] = LinAlg.matrixVectorMult(layers[i].weightMatrix, previousActivation);
 			LinAlg.vectorAdditionShallow(activations[i],layers[i].biasVector);
-			weightedActivations[i] = LinAlg.sigmoidVectorDeep(activations[i]);
+			weightedActivations[i] = activationFunction.deep().apply(activations[i]);
+
 			//LinAlg.sigmoidVectorShallow(activations[i]);
 		}
 
-		/*
-		//Test to verify that the forward pass was accurate in train compared to forward prop.
-		LOG.info("train's forward pass: "+Arrays.toString(activations[HLQ]));
-		LOG.info("Verified forward pass: "+Arrays.toString(fastForwardProp(image.data)));
-		LOG.info("---------------------------");
-		*/
-
-
 		LOG.trace("Output weighted activations (label {}): {}",image.label,weightedActivations[HLQ]);
-		LinAlg.sigmoidPrimeVectorShallow(activations[HLQ]);
+
+		activationFunction.shallow().accept(activations[HLQ]);
 		weightedActivations[HLQ][image.label] -= 1; //aL-y
 		LinAlg.hardamadShallow(activations[HLQ], weightedActivations[HLQ]); //delta capital L
 		LOG.trace("Output activation errors (label {}): {}",image.label,activations[HLQ]);
@@ -137,7 +135,7 @@ public class NeuralNet implements Serializable{
 		//Backprop pass
         for(int i = HLQ-1; i>=0; i--) {		
 			weightedActivations[i] = LinAlg.matrixVectorMultTranspose(layers[i+1].weightMatrix,activations[i+1]);
-			LinAlg.sigmoidPrimeVectorShallow(activations[i]);
+			activationFunction.shallowPrime().accept(activations[i]);
 			LinAlg.hardamadShallow(activations[i],weightedActivations[i]);
 		}	
 		//output
@@ -230,7 +228,7 @@ public class NeuralNet implements Serializable{
 		for(int i = 0; i<HLQ+1; i++) {
 			activation = LinAlg.matrixVectorMult(layers[i].weightMatrix,activation);
 			LinAlg.vectorAdditionShallow(activation, layers[i].biasVector);
-			LinAlg.sigmoidVectorShallow(activation);			
+			activationFunction.shallow().accept(activation);
 		}
 		return activation;
     }

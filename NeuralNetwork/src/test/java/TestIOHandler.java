@@ -1,6 +1,6 @@
 package test.java;
 
-import main.java.IOHandler;
+import main.java.frontFacing.IOHandler;
 import main.java.NeuralNet;
 import org.junit.Assert;
 import org.junit.Test;
