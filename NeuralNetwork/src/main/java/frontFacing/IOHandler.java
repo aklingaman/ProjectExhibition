@@ -4,7 +4,10 @@ package main.java.frontFacing; /**
 
 import main.java.Image;
 import main.java.NeuralNet;
+import main.java.util.LearnRateRegimens.StaticLearnRateRegimen;
 import main.java.util.activations.ActivationFunctionProvider;
+import main.java.util.activations.LeakyReluActivationFunctionProvider;
+import main.java.util.activations.ReluActivationFunctionProvider;
 import main.java.util.activations.SigmoidActivationFunctionProvider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,7 +34,10 @@ public class IOHandler {
             ActivationFunctionProvider activationFunc = null;
 
 			while((line = br.readLine()) !=null) {
-				String[] tokens = line.split(", ");
+				if(line.charAt(0)=='#') {
+				    continue;
+                }
+			    String[] tokens = line.split(", ");
 				if(tokens.length!=6) {
 					continue;
 				}
@@ -54,15 +60,22 @@ public class IOHandler {
                                 case "sigmoid":
                                     activationFunc = SigmoidActivationFunctionProvider.getInstance();
                                     break;
+                                case "relu":
+                                    activationFunc = ReluActivationFunctionProvider.getInstance();
+                                    break;
+                                case "leakyrelu":
+                                    activationFunc = LeakyReluActivationFunctionProvider.getInstance();
+                                    break;
+
                             }
 
 						
 					}	
 				}
-				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, 0.05, activationFunc);
+				NeuralNet ret = new NeuralNet(inputsize, hlsize, hlquantity, outputsize, new StaticLearnRateRegimen(0.05), activationFunc);
 				return ret;
 			}
-
+            LOG.error("Could not find config with name: {}",inputName);
 			System.exit(1);
 			return null;
 		}catch(Exception e) {

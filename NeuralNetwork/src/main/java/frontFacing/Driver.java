@@ -44,11 +44,14 @@ public class Driver {
 		String name = tokens[1];
 		String configuration = tokens[2];
 		NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", configuration);
+
+		int randomSeed = 5;
 		if(tokens.length==4) {
-			model.initialize(Integer.parseInt(tokens[3]));
-		} else {
-			model.initialize();
+			randomSeed = Integer.parseInt(tokens[3]);
 		}
+
+		double randomSpread = 0.5;
+		model.initialize(randomSeed,randomSpread);
 		IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + name);
 		LOG.info("Successfully created a model and serialized it under models");
 	}
@@ -72,9 +75,9 @@ public class Driver {
 		int printFrequency = 100;  //1 out of every PrintFrequency buckets, gets some stuff printed.
 		int epochCount = 50000;
 		long startTime = System.currentTimeMillis();
+		long lastPrintTime = startTime;
 		int trainingSetSize = trainingSet.size();	
 		int bucketSize = 100;
-		model.setLearnRate(0.1);
 		LOG.info("Epoch Count: {}, PrintFrequency: {}, BucketSize: {}",epochCount,printFrequency,bucketSize);
 		ArrayList<Image> bucket = new ArrayList<Image>();
 		for(int i = 0; i<epochCount; i++) {
@@ -86,7 +89,9 @@ public class Driver {
 			}
 			double cost = model.train(bucket);
 			if(i%printFrequency==0) {
-				LOG.info("Training bucket num: " + i+" avg cost: " + cost);
+				long currentTime = System.currentTimeMillis();
+				LOG.info("Training bucket num: {}, avg cost: {}, ms taken:{}",i,cost,currentTime-lastPrintTime);
+				lastPrintTime=currentTime;
 				IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + nnPath);
 			}
 		}	 
@@ -136,7 +141,7 @@ public class Driver {
 		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
 		for(int i = 0; i<learnRates.length; i++) {
 			NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", "mnist2by20");
-			model.initialize();
+			model.initialize(new Random().nextInt(),3);
 			for(int j = 0; j<numRunsPerLearnRate; j++) {
 				for(int k = 0; k<epochCount; k++) {
 					ArrayList<Image> bucket = new ArrayList<Image>();
@@ -146,7 +151,6 @@ public class Driver {
 						bucket.add(trainingSet.get(random));
 						size++;
 					}
-					model.setLearnRate(learnRates[i]);	
 					double cost = model.train(bucket);
 				}
 				List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");

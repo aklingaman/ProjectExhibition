@@ -1,3 +1,6 @@
+#Config file for neural nets.
+#Config file will just loop through and find the first config that matches the name you provide, and use that config.
+#Avoid duplicate names.
 name: mnist2by20, inputsize: 784, hlquantity: 2, hlsize: 20, outputsize: 10, activation: sigmoid
 name: mnist2by16, inputsize: 784, hlquantity: 2, hlsize: 16, outputsize: 10, activation: sigmoid
 name: mnist2by25, inputsize: 784, hlquantity: 2, hlsize: 25, outputsize: 10, activation: sigmoid
@@ -6,3 +9,5 @@ name: mnist2by100, inputsize: 784, hlquantity: 2, hlsize: 100, outputsize: 10, a
 name: mnist2by50, inputsize: 784, hlquantity: 2, hlsize: 50, outputsize: 10, activation: sigmoid
 name: mnist3by30, inputsize: 784, hlquantity: 3, hlsize: 30, outputsize: 10, activation: sigmoid
 name: mnist1by10, inputsize: 784, hlquantity: 1, hlsize: 10, outputsize: 10, activation: sigmoid
+name: mnist2by20Relu, inputsize: 784, hlquantity: 2, hlsize: 20, outputsize: 10, activation: relu
+name: mnist2by20LeakyRelu, inputsize: 784, hlquantity: 2, hlsize: 20, outputsize: 10, activation: leakyrelu

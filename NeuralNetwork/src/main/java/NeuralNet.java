@@ -1,5 +1,6 @@
 package main.java;//Version 2 of the NN class. Supports 2 different types of NN objects. One is the actual NN, the other is just a container to store changes to a NN for use with backprop.
 
+import main.java.util.LearnRateRegimens.LearnRateRegimen;
 import main.java.util.LinAlg;
 import main.java.util.activations.ActivationFunctionProvider;
 import org.apache.logging.log4j.LogManager;
@@ -11,7 +12,7 @@ import java.io.*;
 public class NeuralNet implements Serializable{
 	public static Logger LOG = LogManager.getLogger();
 	private int HLS, HLQ, insize, outsize;
-	private double learnRate;
+	private LearnRateRegimen learnRateRegimen;
 	public NNLayer[] layers;
 	private ActivationFunctionProvider activationFunction;
 
@@ -20,12 +21,12 @@ public class NeuralNet implements Serializable{
 	 *
 	 *
 	 * @param inputSize: # of elements in input vector. (standard mnist would be 28*28 = 784)
-	 * @param HLS
-	 * @param HLQ
-	 * @param outputSize
-	 * @param learnRate
+	 * @param HLS: hidden layer size
+	 * @param HLQ: hidden layer quantity
+	 * @param outputSize: output vector size ( number of possible ways to classify the deck )
+	 * @param learnRateRegimen
 	 */
-    public NeuralNet(int inputSize, int HLS, int HLQ, int outputSize, double learnRate, ActivationFunctionProvider activationFunction) {
+    public NeuralNet(int inputSize, int HLS, int HLQ, int outputSize, LearnRateRegimen learnRateRegimen, ActivationFunctionProvider activationFunction) {
 		if(inputSize<1 || HLS < 1 || HLQ < 1 || outputSize < 2 || activationFunction==null) {
 			LOG.error("NN initializer failed sanity check on input parameters.");
 			System.exit(1); 
@@ -34,7 +35,7 @@ public class NeuralNet implements Serializable{
 		this.outsize = outputSize;
 		this.HLS = HLS;
 		this.HLQ = HLQ;
-		this.learnRate = learnRate;
+		this.learnRateRegimen = learnRateRegimen;
 		this.activationFunction=activationFunction;
 		layers = new NNLayer[HLQ+1]; //+1 is for the output layer.
 		for(int i = 0; i<=HLQ; i++) {
@@ -51,29 +52,22 @@ public class NeuralNet implements Serializable{
     }
 
 	/**
-	 * Sets up a NN with some random initial values. Pass in a value to seed if you like.
-	 *
+	 * Initializes a neural net.
+	 * @param randomSeed randomness seed. Same seed same numbers. Put null if you dont want to supply for true randomness.
+	 * @param randomSpread changes how far the numbers will be from 0, uniform dist from (-spread,+spread)
 	 */
-	public void initialize() {
-		actuallyInitialize(new Random().nextInt());
-	}
-
-	public void initialize(Integer randomSeed) {
-		actuallyInitialize(randomSeed);
-	}
-
-	private void actuallyInitialize(Integer randomSeed) {
-		Random rd = new Random(randomSeed);
+	public void initialize(Integer randomSeed, double randomSpread) {
+		Random rd = randomSeed==null?new Random():new Random(randomSeed);
 		for(int i = 0; i<layers.length; i++) {
 			double[][] weight = layers[i].weightMatrix;
 			double[] bias = layers[i].biasVector;
 			for(int j = 0; j<weight.length; j++) {
 				for(int k = 0; k<weight[j].length; k++) {
-					weight[j][k] = rd.nextDouble()*6-3;
+					weight[j][k] = (rd.nextDouble()*(randomSpread*2))-randomSpread;
 				}
 			}
 			for(int j = 0; j<bias.length; j++) {
-				bias[j] = rd.nextDouble()*6-3;
+				bias[j] = (rd.nextDouble()*(randomSpread*2))-randomSpread;
 			}
 		}
 	}
@@ -85,34 +79,31 @@ public class NeuralNet implements Serializable{
 	 * @Return: an EMPTY net.
 	 */
 	public NeuralNet spawnContainerNet() {
-		return new NeuralNet(insize,HLS,HLQ,outsize,learnRate,activationFunction);
+		return new NeuralNet(insize,HLS,HLQ,outsize,learnRateRegimen,activationFunction);
 	}
-
-	public double getLearnRate(){ return this.learnRate; }
-	public void   setLearnRate(double newLearnRate) { this.learnRate = newLearnRate; }
 
 	public double train(List<Image> bucket) {
 		NeuralNet grandDelta  = spawnContainerNet(); //Expresses the entire buckets desired changes
-		NeuralNet transferNet = null; //Expresses one element of the bucket's desired changes.
+		NeuralNet transferNet = spawnContainerNet(); //Expresses one element of the bucket's desired changes.
         double cost = 0.0; //error metric, used for printing.
 		int size = bucket.size(); 
 		for(int i = 0; i<size; i++) { 
             Image image = bucket.get(i);
-			transferNet = computeDelta(image);
+			computeDelta(image,transferNet);
             grandDelta.combineNeuralNets(transferNet); 
 			double[] output = fastForwardProp(image.data); //held for optional printing
             cost+=cost(output,image.label);
 			//LOG.info(Arrays.toString(output));
         }   
         cost/=bucket.size();
-		grandDelta.multiplyNNByScalar(-1.0*learnRate/bucket.size()); //Scales the delta NN by the learn rate factor.
+		grandDelta.multiplyNNByScalar(-1.0*learnRateRegimen.nextLearnRate(this)/bucket.size()); //Scales the delta NN by the learn rate factor.
 		combineNeuralNets(grandDelta);
 		return cost;
 	}
 
     //Computes the desired changes to the neuralnet for a particular input, and stores into a delta NN container.
-    public NeuralNet computeDelta(Image image) {	
-        NeuralNet delta = spawnContainerNet();
+    public void computeDelta(Image image, NeuralNet containerNet) {
+        NeuralNet delta = containerNet;
 		double[][] weightedActivations = new double[HLQ+1][];	//Holds our delta l's
 		double[][] activations = new double[HLQ+1][]; //jagged array, each subarray has different size
 		//Forward pass, we use this instead of forwardprop() because this holds onto intermediate data rather than just output
@@ -150,50 +141,25 @@ public class NeuralNet implements Serializable{
 				}
 			}
 		}
-       	return delta;
     }
 
-	//takes in a NN and combines with NN caller. I originally had a factor multiplier, but i removed it in favor of having a separate function to handle it. In the interest of speed, i may bring it back to see what that does to the runtime. 
+	/**
+	 * "Adds" 2 neural nets together.
+	 *
+ 	 * @param delta
+	 */
     public void combineNeuralNets(NeuralNet delta) {
 		for(int i = 0; i<layers.length; i++) {
-			double[][] weightA = layers[i].weightMatrix;
-			double[][] weightB = delta.layers[i].weightMatrix;
-			for(int j = 0; j<weightA.length; j++) {
-				for(int k = 0; k<weightA[j].length; k++) {
-					weightA[j][k] += weightB[j][k];
+			for(int j = 0; j<layers[i].weightMatrix.length; j++) {
+				for(int k = 0; k<layers[i].weightMatrix[j].length; k++) {
+					layers[i].weightMatrix[j][k] += delta.layers[i].weightMatrix[j][k];
 				}
 			}
-			double[] biasA = layers[i].biasVector;
-			double[] biasB = delta.layers[i].biasVector;
-			for(int j = 0; j<biasA.length; j++) {
-				biasA[j]+=biasB[j];
+			for(int j = 0; j<layers[i].biasVector.length; j++) {
+				layers[i].biasVector[j]+=delta.layers[i].biasVector[j];
 			}
 		}
     }
-
-	//Similar to combine NeuralNets, but instead of averaging the Nets, it takes in the parameter and replaces the Callers NN. This is used to keep the memory allocation down.  
-	//Currently unused because its unneeded, changed compute delta instead. 
-    public void replaceNeuralNetValues(NeuralNet delta) {
-		if(!isSameShape(delta)){
-			LOG.error("Cannot combine these nets, not the same shape. ");
-		}
-		for(int i = 0; i<layers.length; i++) {
-			double[][] weightA = layers[i].weightMatrix;
-			double[][] weightB = delta.layers[i].weightMatrix;
-			for(int j = 0; j<weightA.length; j++) {
-				for(int k = 0; k<weightA[j].length; k++) {
-					weightA[j][k] = weightB[j][k];
-				}
-			}
-			double[] biasA = layers[i].biasVector;
-			double[] biasB = delta.layers[i].biasVector;
-			for(int j = 0; j<biasA.length; j++) {
-				biasA[j] = biasB[j];
-			}
-		}
-	
-	}	
-
 
 	//Multiplies a NN's weights and biases by a factor. This is used by the training function because we need to apply a learning rate that changes how fast changes get made. 
 	public void multiplyNNByScalar(double factor) {
@@ -277,7 +243,7 @@ public class NeuralNet implements Serializable{
 		sb.append("Hidden Layer Size: "     + this.HLS       +"\n");
 		sb.append("Hidden Layer Quantity: " + this.HLQ       +"\n");
 		sb.append("Output Layer Size: "     + this.outsize   +"\n");
-		sb.append("Learn rate: "            + this.learnRate +"\n");
+		sb.append("Learn rate: "            + this.learnRateRegimen.toString() +"\n");
 		return sb.toString();
 	}
 

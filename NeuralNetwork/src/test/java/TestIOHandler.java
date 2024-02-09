@@ -29,7 +29,7 @@ public class TestIOHandler {
         String testPath = path+"/config/config.txt";
         String configuration = "mnist2by20";
         NeuralNet model = IOHandler.createFromConfigFile(testPath,configuration);
-        model.initialize(new Random().nextInt());
+        model.initialize(new Random().nextInt(),3);
         String writeReadPath = path+"/src/test/java/resources/UnitTestModelDontTouchMe";
         System.out.println(writeReadPath);
         IOHandler.writeModelToFile(model,writeReadPath);
