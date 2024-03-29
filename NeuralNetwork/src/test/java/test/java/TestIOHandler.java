@@ -7,11 +7,15 @@ import org.junit.Test;
 
 import java.util.Random;
 
+
+
 /**
- * This class is mostly for testing external state of the config, read/write of models, read of data sets.
+ * This was used to test locally stored config happened properly but is being decommissioned as
+ * the config and io is now done with mongo db and we dont want to unit test an actual connection its pointless to unit test.
  */
 public class TestIOHandler {
 
+/**
     public static String path = System.getProperty("user.dir");
     @Test
     public void testCreateFromConfigFile() {
@@ -38,7 +42,7 @@ public class TestIOHandler {
         Assert.assertTrue(newModel.layers[0].biasVector[0]==model.layers[0].biasVector[0]);
     }
 
-
+*/
 
 
 

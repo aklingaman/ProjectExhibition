@@ -18,19 +18,20 @@ public class Driver {
 	public static void main(String[] args) {
 		LOG.info("Basic Neural Network made by Adam Klingaman");
 		LOG.info("Type help for help or info for more info needed to get started for yourself. ");
-
+		IOHandler ioHandler = new IOHandler(args[0]);
+		NeuralNetworkFactory nnProvider = new NeuralNetworkFactory(ioHandler);
 		Scanner sc = new Scanner(System.in);
 		String ans;
 		while((ans=sc.nextLine())!=null) {
 			String[] tokens = ans.split(" ");
 			tokens[0] = tokens[0].toLowerCase();
 			switch(tokens[0]) {
-				case "create":     create(tokens);   break;
-				case "train":      train(tokens);    break;
-				case "test" :      test(tokens);     break;
-				case "experiment": experiment();     break;
+				case "create":     create(tokens,ioHandler, nnProvider);   break;
+				case "train":      train(tokens,ioHandler);    break;
+				case "test" :      test(tokens,ioHandler);     break;
+				case "experiment": experiment(ioHandler,nnProvider);     break;
 				case "help":       help();           break;
-				case "metadata":   metadata(tokens); break;
+				case "metadata":   metadata(tokens[1],ioHandler); break;
 				case "info":       info();           break;
 				case "exit":       exit();
 				default:  LOG.info("Not an option");
@@ -39,12 +40,11 @@ public class Driver {
 	}
 
 	//attempt to create a NN given the following name and configuration, returns success or fail. 
-	public static void create(String[] tokens) {
+	public static void create(String[] tokens, IOHandler ioHandler, NeuralNetworkFactory nnProvider) {
 		LOG.info("Creating new model");
 		String name = tokens[1];
 		String configuration = tokens[2];
-		NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", configuration);
-
+		NeuralNet model = nnProvider.provideFromConfig(name,configuration);
 		int randomSeed = 5;
 		if(tokens.length==4) {
 			randomSeed = Integer.parseInt(tokens[3]);
@@ -52,22 +52,22 @@ public class Driver {
 
 		double randomSpread = 0.5;
 		model.initialize(randomSeed,randomSpread);
-		IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + name);
+		ioHandler.writeNeuralNetToDB(model);
 		LOG.info("Successfully created a model and serialized it under models");
 	}
 
-	public static void train(String[] tokens){
+	public static void train(String[] tokens, IOHandler ioHandler){
 		LOG.info("Training model");
-		String nnPath = tokens[1];
-		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
+		String nnName = tokens[1];
+		List<Image> trainingSet = ioHandler.getDataSet("mnist-train");
 		if(trainingSet==null||trainingSet.size()==0) {
-			LOG.error("Unable to get training data");
+			LOG.error("Error getting training data");
 			return;
 		}
-		LOG.info("Succesfully managed to obtain training data with: "+trainingSet.size()+" data points");
-		NeuralNet model = IOHandler.readModelFromFile(path+"/models/"+nnPath);
+		LOG.info("Successfully managed to obtain training data with: "+trainingSet.size()+" data points");
+		NeuralNet model = ioHandler.getNeuralNet(nnName);
 		if(model==null) {
-			LOG.error("Unable to find file");
+			LOG.error("Unable to acquire neural net: {}",nnName);
 			System.exit(1);
 		}
 		LOG.info("Successfully managed to obtain model from file.");
@@ -92,26 +92,24 @@ public class Driver {
 				long currentTime = System.currentTimeMillis();
 				LOG.info("Training bucket num: {}, avg cost: {}, ms taken:{}",i,cost,currentTime-lastPrintTime);
 				lastPrintTime=currentTime;
-				IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + nnPath);
+				ioHandler.writeNeuralNetToDB(model);
 			}
 		}	 
 		LOG.info("Training complete, total time: " + 1.0*(System.currentTimeMillis()-startTime)/1000 + " seconds.");
-		IOHandler.writeModelToFile(model,path + File.separator + "models" + File.separator + nnPath);
+		ioHandler.writeNeuralNetToDB(model);
 	}
-	public static void test(String[] tokens) {
+	public static void test(String[] tokens,IOHandler ioHandler) {
 		LOG.info("Testing Model");
-		String nnPath = tokens[1];
-		List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
+		String nnName = tokens[1];
+		List<Image> testSet = ioHandler.getDataSet("mnist-test");
 		if(testSet==null||testSet.size()==0) { 
 			LOG.error("Error getting test data");
 			return;
 		}
 		LOG.info("Successfully obtained testing data");
-		NeuralNet model = IOHandler.readModelFromFile(path+"/models/"+nnPath);
-		if(model!=null) {
-			LOG.info("Successfully obtained model");
-		} else {
-			LOG.error("Unable to find file");
+		NeuralNet model = ioHandler.getNeuralNet(nnName);
+		if(model==null) {
+			LOG.error("Unable to acquire neural net: {}",nnName);
 			System.exit(1);
 		}
 		//Begin testing procedure
@@ -133,14 +131,15 @@ public class Driver {
 	}
 
 	//Dummy function used for messing around with stuff. Used the word experiment to distinguish from test. 	
-	public static void experiment() {
+	public static void experiment(IOHandler ioHandler, NeuralNetworkFactory nnProvider) {
 		LOG.info("Current experiment: making a bunch of identical NN's except with different learning rates to see which ones can converge to a solution");
 		double[] learnRates = {0.0001,0.0005, 0.001, 0.005, 0.01,0.05,0.1,0.5};
 		int numRunsPerLearnRate = 3;
 		int epochCount = 3000;
-		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
+		List<Image> trainingSet = ioHandler.getDataSet("mnist-train");
+		List<Image> testSet = ioHandler.getDataSet("mnist-test");
 		for(int i = 0; i<learnRates.length; i++) {
-			NeuralNet model = IOHandler.createFromConfigFile(path+"/config/config.txt", "mnist2by20");
+			NeuralNet model = nnProvider.provideFromConfig("test-"+System.currentTimeMillis(),"mnist2by20");
 			model.initialize(new Random().nextInt(),3);
 			for(int j = 0; j<numRunsPerLearnRate; j++) {
 				for(int k = 0; k<epochCount; k++) {
@@ -153,7 +152,6 @@ public class Driver {
 					}
 					double cost = model.train(bucket);
 				}
-				List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
 				int count = testSet.size();
 				int correct = 0;
 				for(Image l : testSet) {
@@ -185,8 +183,8 @@ public class Driver {
 
 
 	//prints out an overview of a NN's characteristic meta params. Does this by actually creating the NN, so its expensive, so dont spam it. 
-	public static void metadata (String[] tokens) {
-		LOG.info(IOHandler.readModelFromFile(path+"/models/"+tokens[1]).metadata());
+	public static void metadata(String name,IOHandler ioHandler) {
+		LOG.info(ioHandler.getNeuralNet(name).metadata());
 	}
 
 	public static void exit(){
