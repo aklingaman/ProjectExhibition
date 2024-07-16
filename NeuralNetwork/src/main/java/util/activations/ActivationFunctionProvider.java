@@ -1,16 +1,18 @@
 package main.java.util.activations;
 
 
+import org.jblas.DoubleMatrix;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface ActivationFunctionProvider {
 
-    public Consumer<double[]> shallow();
-    public Consumer<double[]> shallowPrime();
+    public Consumer<DoubleMatrix> shallow();
+    public Consumer<DoubleMatrix> shallowPrime();
 
-    public Function<double[], double[]> deep();
-    public Function<double[], double[]> deepPrime();
+    public Function<DoubleMatrix, DoubleMatrix> deep();
+    public Function<DoubleMatrix, DoubleMatrix> deepPrime();
 
 
 

@@ -5,11 +5,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+
 import main.java.Image;
-import main.java.util.LinAlg;
+import main.java.Visualization.TestRunViewer;
 import main.java.NeuralNet;
+import main.java.util.TestRunDataPoint;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jblas.DoubleMatrix;
 
 public class Driver {
 	public static Logger LOG = LogManager.getLogger();
@@ -60,7 +63,7 @@ public class Driver {
 		LOG.info("Training model");
 		String nnPath = tokens[1];
 		List<Image> trainingSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_train.csv");
-		if(trainingSet==null||trainingSet.size()==0) {
+		if(trainingSet==null||trainingSet.isEmpty()) {
 			LOG.error("Unable to get training data");
 			return;
 		}
@@ -102,7 +105,7 @@ public class Driver {
 		LOG.info("Testing Model");
 		String nnPath = tokens[1];
 		List<Image> testSet = IOHandler.collectImagesIntoDataSet(path+"/data/mnist_test.csv");
-		if(testSet==null||testSet.size()==0) { 
+		if(testSet==null||testSet.isEmpty()) {
 			LOG.error("Error getting test data");
 			return;
 		}
@@ -115,21 +118,23 @@ public class Driver {
 			System.exit(1);
 		}
 		//Begin testing procedure
-		int count = 0;
-		int correct = 0;
-		int[] guesses = new int[10];
-		int[] actual = new int[10];
+
+		List<TestRunDataPoint> correctGuesses = new ArrayList<>();
+		List<TestRunDataPoint> wrongGuesses = new ArrayList<>();
 		for(Image i : testSet) {
-			int prediction = LinAlg.vote(model.fastForwardProp(i.data));
-			count++;
-			guesses[prediction]++;
-			actual[i.label]++;
-			if(prediction==i.label) {
-				correct++;
-			} 
+			DoubleMatrix activations = model.fastForwardProp(i.getVectorizedImage());
+			TestRunDataPoint dataPoint = new TestRunDataPoint(i,activations);
+			if(dataPoint.wasGuessCorrect()) {
+					correctGuesses.add(dataPoint);
+			} else {
+					wrongGuesses.add(dataPoint);
+			}
 		}
-		printTestResults(guesses,actual);
-		LOG.info("Model classified {} correctly out of {} testing records for a {}% accuracy",correct,count,100.0*correct/count);
+		int correctCount = correctGuesses.size();
+		int totalCount = correctGuesses.size()+ wrongGuesses.size();
+		LOG.info("Model classified {} correctly out of {} testing records for a {}% accuracy",correctCount,totalCount,100.0*correctCount/totalCount);
+		TestRunViewer trv = new TestRunViewer();
+		trv.generateTestReport(correctGuesses,wrongGuesses);
 	}
 
 	//Dummy function used for messing around with stuff. Used the word experiment to distinguish from test. 	
@@ -157,7 +162,7 @@ public class Driver {
 				int count = testSet.size();
 				int correct = 0;
 				for(Image l : testSet) {
-					int prediction = LinAlg.vote(model.fastForwardProp(l.data));
+					int prediction = model.fastForwardProp(l.getVectorizedImage()).argmax();
 					if(prediction == l.label) {
 						correct++;
 					}

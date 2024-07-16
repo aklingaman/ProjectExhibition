@@ -1,11 +1,13 @@
 package main.java;
 
+import org.jblas.DoubleMatrix;
+
 import java.io.*;
 public class NNLayer implements Serializable {
-	public double[] biasVector;
-	public double[][] weightMatrix;
+	public DoubleMatrix biasVector;
+	public DoubleMatrix weightMatrix;
 	public NNLayer(int rowSize, int colSize) {
-		biasVector = new double[rowSize];
-		weightMatrix = new double[rowSize][colSize];	
+		biasVector = new DoubleMatrix(rowSize,1);
+		weightMatrix = new DoubleMatrix(rowSize,colSize);
 	}
 }

@@ -1,5 +1,7 @@
 package main.java.util.activations;
 
+import org.jblas.DoubleMatrix;
+
 import java.io.Serializable;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -22,8 +24,8 @@ public class ReluActivationFunctionProvider implements ActivationFunctionProvide
     //Its helpful to just pretend this doesnt exist and that the consumers and functions are just vanilla.
     //if serializable is ever removed in favor of some other way to store the data
     //( for instance if a visualization tool is implemented ), clean this all up.
-    interface SerializableConsumer extends Consumer<double[]>, Serializable {}
-    interface SerializableFunction extends Function<double[],double[]>, Serializable {}
+    interface SerializableConsumer extends Consumer<DoubleMatrix>, Serializable {}
+    interface SerializableFunction extends Function<DoubleMatrix,DoubleMatrix>, Serializable {}
 
 
     public static ReluActivationFunctionProvider getInstance() {
@@ -42,54 +44,54 @@ public class ReluActivationFunctionProvider implements ActivationFunctionProvide
     }
 
 
-    private void activateShallow(double[] input) {
+    private void activateShallow(DoubleMatrix input) {
         for(int i =0; i<input.length; i++) {
-            input[i]=Math.max(0,input[i]);
+            input.put(i,Math.max(0,input.get(i)));
         }
     }
 
 
-    private void activatePrimeShallow(double[] input) {
+    private void activatePrimeShallow(DoubleMatrix input) {
         for(int i =0; i<input.length; i++) {
-            input[i]=input[i]<=0?0:1;
+            input.put(i,input.get(i)<=0?0:1);
         }
     }
 
 
-    private double[] activateDeep(double[] input) {
-        double[] output = new double[input.length];
+    private DoubleMatrix activateDeep(DoubleMatrix input) {
+        DoubleMatrix output = new DoubleMatrix(input.rows,input.columns);
         for(int i = 0; i<input.length; i++) {
-            output[i] = Math.max(0,input[i]);
+            output.put(i, Math.max(0,input.get(i)));
         }
         return output;
     }
 
 
-    private double[] activatePrimeDeep(double[] input) {
-        double[] output = new double[input.length];
+    private DoubleMatrix activatePrimeDeep(DoubleMatrix input) {
+        DoubleMatrix output = new DoubleMatrix(input.rows,input.columns);
         for(int i = 0; i<input.length; i++) {
-            output[i] = input[i]<=0?0:1;
+            output.put(i, input.get(i)<=0?0:1);
         }
         return output;
     }
 
     @Override
-    public Consumer<double[]> shallow() {
+    public Consumer<DoubleMatrix> shallow() {
         return shallow;
     }
 
     @Override
-    public Consumer<double[]> shallowPrime() {
+    public Consumer<DoubleMatrix> shallowPrime() {
         return primeShallow;
     }
 
     @Override
-    public Function<double[], double[]> deep() {
+    public Function<DoubleMatrix, DoubleMatrix> deep() {
         return deep;
     }
 
     @Override
-    public Function<double[], double[]> deepPrime() {
+    public Function<DoubleMatrix, DoubleMatrix> deepPrime() {
         return primeDeep;
     }
 }

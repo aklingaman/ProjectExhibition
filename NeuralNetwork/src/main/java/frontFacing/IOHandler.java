@@ -4,6 +4,7 @@ package main.java.frontFacing; /**
 
 import main.java.Image;
 import main.java.NeuralNet;
+import main.java.Visualization.MatrixViewer;
 import main.java.util.LearnRateRegimens.StaticLearnRateRegimen;
 import main.java.util.activations.ActivationFunctionProvider;
 import main.java.util.activations.LeakyReluActivationFunctionProvider;
@@ -122,15 +123,26 @@ public class IOHandler {
 	public static List<Image> collectImagesIntoDataSet(String path) {
         ArrayList<Image> dataSet = new ArrayList<Image>();
         try {
+
             BufferedReader br = new BufferedReader(new FileReader(path));
             String line;
             while((line = br.readLine())!=null) {
+
                 String[] vals = line.split(",");
-                double[] pixels = new double[784];
-                for(int i = 0; i<784; i++ ) {
-                    pixels[i] = 1.0*Integer.parseInt(vals[i+1])/255;
+                double[][] pixels = new double[28][28];
+                int rowNum=0;
+                int colNum=0;
+                int label = Integer.parseInt(vals[0]);
+                for(int i = 1; i<28*28; i++ ) {
+                    double pixel = 1.0*Integer.parseInt(vals[i])/255;
+                    pixels[rowNum][colNum++] = pixel;
+                    if(colNum==28) {
+                        rowNum++;
+                        colNum=0;
+                    }
                 } 
-                dataSet.add(new Image(Integer.parseInt(vals[0]),pixels)); 
+                Image i = new Image(label,pixels);
+                dataSet.add(i);
             }
             return dataSet;
         }catch(Exception e) {

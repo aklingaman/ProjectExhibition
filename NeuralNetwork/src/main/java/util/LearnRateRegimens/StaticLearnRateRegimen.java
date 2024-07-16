@@ -2,7 +2,9 @@ package main.java.util.LearnRateRegimens;
 
 import main.java.NeuralNet;
 
-public class StaticLearnRateRegimen implements LearnRateRegimen {
+import java.io.Serializable;
+
+public class StaticLearnRateRegimen implements LearnRateRegimen, Serializable {
 
     private double learnRate;
 
